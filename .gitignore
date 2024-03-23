@@ -400,4 +400,5 @@ FodyWeavers.xsd
 venv/
 img_align_celeba/
 res/
-runs/
+runs*/
+weights*/
