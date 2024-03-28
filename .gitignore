@@ -396,3 +396,9 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+venv/
+stylegan2_ada_pytorch/
+editing/
+aligned_images/
+14-celebrity-faces-dataset/
+4e_invertion/
