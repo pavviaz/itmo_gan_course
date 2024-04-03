@@ -42,7 +42,69 @@ def __getitem__(self, idx):
 2) ReLu был везде заменен на Tanh;
 3) (опционально) Для первой половины каналов был добавлен BatchNorm для регуляризации.
 
-Кроме генератора на основе CSP также в экспериментах был использован вариант из DCGAN, представленный в качестве демонстрации к данному ДЗ. 
+Кроме генератора на основе CSP также в экспериментах был использован вариант из DCGAN, представленный в качестве демонстрации к данному ДЗ.
+
+**!!! UPDATE !!!**
+
+В исправленной реализации CSP функция `torch.split` заменила срезы для правильного построения вычислительного графа модели, а также параметры kernel_size с padding для conv1 были заменены на 1 и 0 соответственно:
+```
+class ConvBNTanh(nn.Module):
+    def __init__(self, ch, kernel_size=3, stride=1, padding=1):
+        super(ConvBNTanh, self).__init__()
+        self.conv = nn.Conv2d(ch, ch, kernel_size, stride, padding=padding, bias=False)
+        self.bn = nn.BatchNorm2d(ch)
+        self.act = nn.Tanh()
+
+    def forward(self, x):
+        y = self.conv(x)
+        y = self.bn(y)
+        return self.act(y)
+
+
+class CSPup(nn.Module):
+    def __init__(
+        self, c_in, kernel=3, stride=1, pad=1, e=0.5
+    ):  # ch_in, ch_out, shortcut, groups, expansion
+        super(CSPup, self).__init__()
+        self.e = e
+        c_out = int(c_in * self.e)
+
+        self.upsamp = nn.ConvTranspose2d(
+            c_out, c_out, kernel_size=4, stride=2, padding=1, bias=False
+        )
+        self.upsamp1 = nn.ConvTranspose2d(
+            c_in, c_out, kernel_size=4, stride=2, padding=1, bias=False
+        )
+
+        # fixed kernel_size and padding for conv1
+        self.conv1 = ConvBNTanh(c_out, kernel_size=1, stride=1, padding=0)
+        self.conv2 = ConvBNTanh(c_out, kernel_size=kernel, stride=1)
+        self.conv3 = nn.Conv2d(
+            c_out, c_out, kernel_size=kernel, stride=stride, padding=pad
+        )
+
+    def forward(self, x):
+        ch = x.shape[1]
+        e = int(ch * self.e)
+
+        # using torch.split to be sure gradients are not leaking
+        y1, y2 = torch.split(x, e, dim=1)
+
+        y1 = self.upsamp(y1)
+
+        y2 = self.conv1(y2)
+        y2 = self.upsamp(y2)
+        y2 = self.conv2(y2)
+        y2 = self.conv3(y2)
+
+        return y1 + y2
+    
+
+t = torch.randn(1, 1024, 4, 4)
+csp = CSPup(1024)
+csp(t).shape
+# torch.Size([1, 512, 8, 8])
+```
 
 ### Дискриминатор
 
