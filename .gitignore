@@ -396,3 +396,10 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+venv/
+diffusers/
+Civitai_converted/
+reeves_dataset/
+reeves_cropped/
+class_imgs/
